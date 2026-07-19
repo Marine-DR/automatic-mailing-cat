@@ -29,15 +29,15 @@ export function buildReminderDraft(row: ValidatedRow): MailDraft | null {
 }
 
 export class DryRunMailPort implements MailPort {
-  public readonly sentDrafts: MailDraft[] = [];
+  constructor(public readonly sentDrafts: MailDraft[] = []) {}
 
   send(draft: MailDraft): void {
     this.sentDrafts.push(draft);
   }
 }
 
-export class GmailMailPort implements MailPort {
+export class AppsScriptMailPort implements MailPort {
   send(draft: MailDraft): void {
-    GmailApp.sendEmail(draft.to, draft.subject, draft.body);
+    MailApp.sendEmail(draft.to, draft.subject, draft.body);
   }
 }

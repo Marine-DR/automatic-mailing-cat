@@ -1,6 +1,6 @@
 import { buildConsolidatedSheetFromValidatedRows, buildRawValues } from "../domain/consolidate";
 import { buildSourceIndex } from "../domain/schema";
-import type { ConsolidatedSheetData, SourceSheetSnapshot } from "../domain/types";
+import type { ConsolidatedSheetData, SourceSheetSnapshot, ValidatedRow } from "../domain/types";
 import { validateRow } from "../domain/validation";
 import type { RowCriteria, RowCriteriaContext } from "../domain/rowCriteria";
 
@@ -12,6 +12,12 @@ export interface FilterRowsToSheetPort {
 export interface FilterRowsToSheetOptions {
   outputSheetName: string;
   criteria: RowCriteria;
+  extraColumns?: FilterRowsToSheetExtraColumn[];
+}
+
+export interface FilterRowsToSheetExtraColumn {
+  header: string;
+  value: string | boolean | number | ((row: ValidatedRow, context: RowCriteriaContext) => string | boolean | number);
 }
 
 export interface FilterRowsToSheetResult {
@@ -29,7 +35,7 @@ export function filterRowsToSheet(
 ): FilterRowsToSheetResult {
   const sourceSheet = spreadsheet.getActiveSourceSheet();
   const sourceIndex = buildSourceIndex(sourceSheet.headers);
-  const validatedRows = sourceSheet.rows
+  const matchedRows = sourceSheet.rows
     .map((row, sourceRowIndex) => {
       const context: RowCriteriaContext = {
         sourceRowIndex,
@@ -41,10 +47,11 @@ export function filterRowsToSheet(
         validatedRow: validateRow(buildRawValues(sourceIndex, row))
       };
     })
-    .filter(({ context, validatedRow }) => options.criteria(validatedRow, context))
-    .map(({ validatedRow }) => validatedRow);
+    .filter(({ context, validatedRow }) => options.criteria(validatedRow, context));
+  const validatedRows = matchedRows.map(({ validatedRow }) => validatedRow);
 
   const outputSheet = buildConsolidatedSheetFromValidatedRows(validatedRows);
+  appendExtraColumns(outputSheet, matchedRows, options.extraColumns ?? []);
   spreadsheet.writeValidatedSheet(options.outputSheetName, outputSheet);
 
   const validRows = validatedRows.filter((row) => row.isValid).length;
@@ -57,4 +64,24 @@ export function filterRowsToSheet(
     validRows,
     invalidRows: validatedRows.length - validRows
   };
+}
+
+function appendExtraColumns(
+  outputSheet: ConsolidatedSheetData,
+  matchedRows: Array<{ context: RowCriteriaContext; validatedRow: ValidatedRow }>,
+  extraColumns: FilterRowsToSheetExtraColumn[]
+): void {
+  if (extraColumns.length === 0) {
+    return;
+  }
+
+  outputSheet.headers.push(...extraColumns.map((column) => column.header));
+  outputSheet.rows = outputSheet.rows.map((row, rowIndex) => [
+    ...row,
+    ...extraColumns.map((column) =>
+      typeof column.value === "function"
+        ? column.value(matchedRows[rowIndex].validatedRow, matchedRows[rowIndex].context)
+        : column.value
+    )
+  ]);
 }

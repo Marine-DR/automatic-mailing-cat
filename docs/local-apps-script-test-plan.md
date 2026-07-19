@@ -18,7 +18,7 @@ Set up a TypeScript Apps Script project that can be tested locally and later pus
   - Tests for valid and invalid rows.
 - Add adapters around Google services:
   - Spreadsheet adapter for reading origin rows, writing consolidated rows, highlighting errors, and applying validation rules.
-  - Mail adapter with dry-run local behavior and isolated production `GmailApp` calls.
+  - Mail adapter with dry-run local behavior and isolated production `MailApp` calls.
 - Move the sample CSV into a stable fixture path and parse it with a real CSV parser because the current headers include quoted embedded newlines.
 
 ## Validated Sheet Behavior

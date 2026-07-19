@@ -235,6 +235,8 @@ export class GoogleSpreadsheetPort {
     SpreadsheetApp.getUi()
       .createMenu(MENU_NAME)
       .addItem("Refresh validated sheet", "refreshValidatedAdoptions")
+      .addItem("Create sterilization reminder emails", "createSterilizationReminderEmails")
+      .addItem("Send sterilization reminder emails", "sendSterilizationReminderEmails")
       .addItem("Revalidate selected rows", "revalidateSelectedValidatedRows")
       .addItem("Install edit trigger", "installValidatedSheetEditTrigger")
       .addToUi();
@@ -246,22 +248,20 @@ export class GoogleSpreadsheetPort {
 
   getActiveSourceSheet(): SourceSheetSnapshot {
     const sheet = this.spreadsheet.getActiveSheet();
+    return this.readSheetSnapshot(sheet, "The active sheet is empty.");
+  }
 
-    if (GoogleSpreadsheetPort.isValidatedSheetName(sheet.getName())) {
-      throw new Error("Select the source sheet before refreshing the validated sheet.");
+  getActiveSheetSnapshot(): SourceSheetSnapshot {
+    return this.readSheetSnapshot(this.spreadsheet.getActiveSheet(), "The active sheet is empty.");
+  }
+
+  getSheetSnapshot(sheetName: string): SourceSheetSnapshot {
+    const sheet = this.spreadsheet.getSheetByName(sheetName);
+    if (!sheet) {
+      throw new Error(`Sheet does not exist: ${sheetName}`);
     }
 
-    const values = sheet.getDataRange().getDisplayValues();
-    if (values.length === 0) {
-      throw new Error("The active sheet is empty.");
-    }
-
-    const [headers, ...rows] = values;
-    return {
-      name: sheet.getName(),
-      headers,
-      rows: rows.filter((row) => row.some((value) => value.trim() !== ""))
-    };
+    return this.readSheetSnapshot(sheet, `Sheet is empty: ${sheetName}`);
   }
 
   writeValidatedSheet(sheetName: string, data: ConsolidatedSheetData): void {
@@ -283,6 +283,23 @@ export class GoogleSpreadsheetPort {
 
     applyColumnValidations(sheet, data.rows.length);
     sheet.autoResizeColumns(1, data.headers.length);
+  }
+
+  setSheetColumnValues(
+    sheetName: string,
+    columnNumber: number,
+    updates: Array<{ rowNumber: number; value: string | boolean | number }>
+  ): void {
+    const sheet = this.spreadsheet.getSheetByName(sheetName);
+    if (!sheet) {
+      throw new Error(`Sheet does not exist: ${sheetName}`);
+    }
+
+    for (const update of updates) {
+      sheet.getRange(update.rowNumber, columnNumber).setValue(update.value);
+    }
+
+    SpreadsheetApp.flush();
   }
 
   shouldHandleValidatedSheetEdit(event: GoogleAppsScript.Events.SheetsOnEdit): boolean {
@@ -327,6 +344,23 @@ export class GoogleSpreadsheetPort {
     }
 
     return sheet;
+  }
+
+  private readSheetSnapshot(
+    sheet: GoogleAppsScript.Spreadsheet.Sheet,
+    emptyMessage: string
+  ): SourceSheetSnapshot {
+    const values = sheet.getDataRange().getDisplayValues();
+    if (values.length === 0) {
+      throw new Error(emptyMessage);
+    }
+
+    const [headers, ...rows] = values;
+    return {
+      name: sheet.getName(),
+      headers,
+      rows: rows.filter((row) => row.some((value) => value.trim() !== ""))
+    };
   }
 
   private readValidatedRowValues(

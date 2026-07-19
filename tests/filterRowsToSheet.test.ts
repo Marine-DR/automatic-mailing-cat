@@ -65,6 +65,36 @@ const headers = [
 ];
 
 describe("filter rows to sheet service", () => {
+  it("can read rows from validated output headers on the active sheet", () => {
+    const port = buildPort({
+      name: "Validated Adoptions",
+      headers: [
+        "Date adoption",
+        "Magasin",
+        "Civilite",
+        "Nom",
+        "Prenom",
+        "Recipient",
+        "Telephone",
+        "Nom chat",
+        "Numero identification",
+        "Date naissance",
+        "Adulte ou Chaton",
+        "Sexe",
+        "Email Sent"
+      ],
+      rows: [buildValidSourceRow({ catName: "Nala", emailSent: "" })]
+    });
+
+    const result = filterRowsToSheet(port, {
+      outputSheetName: "Reminder Candidates",
+      criteria: rowCriteria.fieldEquals("catName", "Nala")
+    });
+
+    expect(result.matchedRows).toBe(1);
+    expect(port.writtenSheet?.data.validatedRows[0].values.birthDate).toBe("06/01/2025");
+  });
+
   it("writes only rows matching a reusable field criteria", () => {
     const port = buildPort({
       name: "Adoptions",

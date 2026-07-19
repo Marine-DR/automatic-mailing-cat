@@ -26,7 +26,7 @@ export function buildSourceIndex(headers: string[]): Record<string, number> {
   const indexByFieldKey: Record<string, number> = {};
 
   for (const field of ADOPTION_FIELDS) {
-    const candidates = [field.sourceLabel, ...field.sourceAliases].map(normalizeHeader);
+    const candidates = [field.label, field.sourceLabel, ...field.sourceAliases].map(normalizeHeader);
     const foundIndex = candidates
       .map((candidate) => normalizedHeaderMap.get(candidate))
       .find((candidate): candidate is number => candidate !== undefined);

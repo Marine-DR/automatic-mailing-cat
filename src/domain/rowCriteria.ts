@@ -1,4 +1,5 @@
 import { ADOPTION_FIELDS } from "../config/fields";
+import { isAtLeastMonthsOld } from "./date";
 import { normalizeCellValue } from "./normalize";
 import type { ValidatedRow } from "./types";
 
@@ -53,6 +54,12 @@ export const rowCriteria = {
     assertKnownField(fieldKey);
 
     return (row) => normalizeCellValue(row.values[fieldKey] ?? "") !== "";
+  },
+
+  fieldIsAtLeastMonthsOld(fieldKey: string, months: number, today: Date): RowCriteria {
+    assertKnownField(fieldKey);
+
+    return (row) => isAtLeastMonthsOld(row.values[fieldKey] ?? "", months, today);
   },
 
   and(...criteria: RowCriteria[]): RowCriteria {

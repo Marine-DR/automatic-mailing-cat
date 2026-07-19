@@ -1,4 +1,9 @@
 import { GoogleSpreadsheetPort } from "./adapters/googleSpreadsheet";
+import { AppsScriptMailPort } from "./adapters/mail";
+import {
+  createSterilizationReminderEmailSheet,
+  sendSterilizationReminderEmailsFromSheet
+} from "./app/sterilizationReminderEmails";
 import { MENU_NAME } from "./config/fields";
 import { refreshValidatedSheet } from "./app/refreshValidatedSheet";
 
@@ -53,6 +58,35 @@ function refreshValidatedAdoptions(): void {
     MENU_NAME,
     8
   );
+}
+
+function createSterilizationReminderEmails(): void {
+  const result = createSterilizationReminderEmailSheet(getSpreadsheetPort());
+  SpreadsheetApp.getActiveSpreadsheet().toast(
+    `Sterilization reminder sheet refreshed: ${result.matchedRows}/${result.totalRows} rows selected.`,
+    MENU_NAME,
+    8
+  );
+}
+
+let isSendingSterilizationReminderEmails = false;
+
+function sendSterilizationReminderEmails(): void {
+  if (isSendingSterilizationReminderEmails) {
+    throw new Error("Sterilization reminder sending is already running.");
+  }
+
+  isSendingSterilizationReminderEmails = true;
+  try {
+    const result = sendSterilizationReminderEmailsFromSheet(getSpreadsheetPort(), new AppsScriptMailPort());
+    SpreadsheetApp.getActiveSpreadsheet().toast(
+      `Sterilization reminders sent: ${result.sentRows} sent, ${result.skippedRows} skipped.`,
+      MENU_NAME,
+      8
+    );
+  } finally {
+    isSendingSterilizationReminderEmails = false;
+  }
 }
 
 function installValidatedSheetEditTrigger(): void {
@@ -111,6 +145,8 @@ const appsScriptEntrypoints = globalThis as typeof globalThis & {
   installValidatedSheetEditTrigger: typeof installValidatedSheetEditTrigger;
   revalidateSelectedValidatedRows: typeof revalidateSelectedValidatedRows;
   refreshValidatedAdoptions: typeof refreshValidatedAdoptions;
+  createSterilizationReminderEmails: typeof createSterilizationReminderEmails;
+  sendSterilizationReminderEmails: typeof sendSterilizationReminderEmails;
 };
 
 appsScriptEntrypoints.onOpen = onOpen;
@@ -118,3 +154,5 @@ appsScriptEntrypoints.onEdit = onEdit;
 appsScriptEntrypoints.installValidatedSheetEditTrigger = installValidatedSheetEditTrigger;
 appsScriptEntrypoints.revalidateSelectedValidatedRows = revalidateSelectedValidatedRows;
 appsScriptEntrypoints.refreshValidatedAdoptions = refreshValidatedAdoptions;
+appsScriptEntrypoints.createSterilizationReminderEmails = createSterilizationReminderEmails;
+appsScriptEntrypoints.sendSterilizationReminderEmails = sendSterilizationReminderEmails;
